@@ -1,32 +1,33 @@
 # pat2midi
 
-A command-line tool to convert drum pattern text files (.pat) to MIDI files. This project was inspired by the filetype specified in the [drum-patterns](https://github.com/jcelerier/drum-patterns) repository.
+A command-line tool to convert drum pattern text files (.pat) to MIDI files. Based on the file format from the [drum-patterns](https://github.com/jcelerier/drum-patterns) repository.
 
 ## Basic Usage
 
 Convert a single pattern file to MIDI:
 ```bash
-pat2midi example.pat
+deno --allow-read --allow-write pat2midi.ts examples/example.pat
 ```
 
 Convert a pattern file with custom velocity settings:
 ```bash
-pat2midi example.pat --accentVelocity 100 --normalVelocity 80
+deno --allow-read --allow-write pat2midi.ts examples/named.pat --accentVelocity 100 --normalVelocity 80
 ```
 
 Convert all pattern files in a directory:
 ```bash
-pat2midi patterns
+deno --allow-read --allow-write pat2midi.ts examples
 ```
 
-Use debug mode to output MIDI file contents as JSON:
+Debug mode outputs MIDI file contents as JSON:
 ```bash
-pat2midi example.pat --debug
+deno --allow-read --allow-write pat2midi.ts examples/example.pat --debug
 ```
 
 ## Pattern File Format (.pat)
 
 Pattern files use a simple text format where each line represents a drum instrument:
+
 ```
 42 x---x---x---x---
 38 ----x-------x---
@@ -34,10 +35,37 @@ Pattern files use a simple text format where each line represents a drum instrum
 AC ----x-------x---
 ```
 
-- Each number represents a MIDI note.
-- 'x' marks a hit; '-' represents silence.
-- The special 'AC' line defines the accent pattern.
+Each line contains:
+- A MIDI note number or drum name (e.g., 42 or CH)
+- A pattern using 'x' (hit) and '-' (silence)
+- Optional 'AC' line defining accents
 
-## Idea behind this project
+## Using Drum Names
 
-This tool was inspired by the [drum-machine-patterns](https://github.com/montoyamoraga/drum-machine-patterns), [drum-patterns](https://github.com/jcelerier/drum-patterns) and the book *200 Drum Machine Patterns* by René-Pierre Bardet. I'm not very good at programming drums, so this way I can have a nice set of drum MIDI patterns I can use right away.
+Standard drum names can replace MIDI numbers:
+
+```
+CH --x---x---x--xx-
+CP ----x-------x---
+BD x---x---x---x---
+AC ----x-------x-x-
+```
+
+### Supported Drum Names:
+
+| Name | Description    | MIDI Note |
+|------|---------------|-----------|
+| BD   | Bass Drum     | 36        |
+| RS   | Rim Shot      | 37        |
+| SD   | Snare Drum    | 38        |
+| CP   | Clap          | 39        |
+| CH   | Closed Hi-hat | 42        |
+| LT   | Low Tom       | 43        |
+| OH   | Open Hi-hat   | 46        |
+| MT   | Mid Tom       | 47        |
+| CY   | Crash Cymbal  | 49        |
+| HT   | High Tom      | 50        |
+
+## Background
+
+Inspired by [drum-machine-patterns](https://github.com/montoyamoraga/drum-machine-patterns), [drum-patterns](https://github.com/jcelerier/drum-patterns) and René-Pierre Bardet's book *200 Drum Machine Patterns*. Created to provide ready-to-use MIDI drum patterns.

@@ -44,9 +44,23 @@ function validateOptions(options: Partial<MidiOptions>): void {
   }
 }
 
+// Add drum name to MIDI note mapping
+const DRUM_MAP: { [key: string]: number } = {
+  'BD': 36,
+  'RS': 37,
+  'SD': 38,
+  'CP': 39,
+  'CH': 42,
+  'LT': 43,
+  'OH': 46,
+  'MT': 47,
+  'CY': 49,
+  'HT': 50,
+};
+
 // Types
 interface DrumHit {
-  note: number | string;
+  note: number;
   pattern: string;
 }
 
@@ -85,13 +99,20 @@ function parsePatFile(content: string, name: string): ParsedPattern {
   let patternLength = Infinity;
 
   lines.forEach((line) => {
-    const [note, pattern] = line.trim().split(" ");
-    if (!note || !pattern) return;
+    const [noteStr, pattern] = line.trim().split(/\s+/, 2);
+    if (!noteStr || !pattern) return;
 
-    if (note === "AC") {
+    let note: number;
+
+    if (noteStr === "AC") {
       accents = pattern.split("").map((char) => char === "x");
       patternLength = Math.min(patternLength, pattern.length);
     } else {
+      note = DRUM_MAP[noteStr] ?? parseInt(noteStr, 10);
+      if (isNaN(note)) {
+        console.error(`Invalid note '${noteStr}' in file ${name}`);
+        return;
+      }
       hits.push({ note, pattern });
       patternLength = Math.min(patternLength, pattern.length);
     }
