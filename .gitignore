@@ -1,1 +1,3 @@
-example.mid
+**.mid
+bin/
+examples/midi
