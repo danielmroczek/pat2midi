@@ -65,6 +65,7 @@ AC ----x-------x-x-
 | MT   | Mid Tom       | 47        |
 | CY   | Crash Cymbal  | 49        |
 | HT   | High Tom      | 50        |
+| CB   | Cowbell       | 56        |
 
 ## Background
 

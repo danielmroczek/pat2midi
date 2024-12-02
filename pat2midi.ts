@@ -56,7 +56,14 @@ const DRUM_MAP: { [key: string]: number } = {
   'MT': 47,
   'CY': 49,
   'HT': 50,
+  'CB': 56,
 };
+
+// Add this helper function after DRUM_MAP definition
+function getDrumNote(noteStr: string): number | undefined {
+  const upperKey = noteStr.toUpperCase();
+  return DRUM_MAP[upperKey] ?? parseInt(noteStr, 10);
+}
 
 // Types
 interface DrumHit {
@@ -102,14 +109,12 @@ function parsePatFile(content: string, name: string): ParsedPattern {
     const [noteStr, pattern] = line.trim().split(/\s+/, 2);
     if (!noteStr || !pattern) return;
 
-    let note: number;
-
-    if (noteStr === "AC") {
-      accents = pattern.split("").map((char) => char === "x");
+    if (noteStr.toUpperCase() === "AC") {
+      accents = pattern.split("").map((char) => char.toUpperCase() === "X");
       patternLength = Math.min(patternLength, pattern.length);
     } else {
-      note = DRUM_MAP[noteStr] ?? parseInt(noteStr, 10);
-      if (isNaN(note)) {
+      const note = getDrumNote(noteStr);
+      if (note === undefined || isNaN(note)) {
         console.error(`Invalid note '${noteStr}' in file ${name}`);
         return;
       }
@@ -151,7 +156,7 @@ function convertPatternToMidi(
 
   for (let step = 0; step < patternLength; step++) {
     const notesAtStep = hits
-      .filter(({ pattern }) => pattern[step] === 'x')
+      .filter(({ pattern }) => pattern[step].toUpperCase() === "X")
       .map(({ note }) => Number(note));
 
     if (notesAtStep.length === 0) {
