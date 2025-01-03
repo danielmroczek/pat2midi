@@ -9,54 +9,98 @@ interface MidiOptions {
   noteDuration: number;
   accentVelocity: number;
   normalVelocity: number;
+  flamDuration: number; // New: offset in ticks for flam grace note
+  flamVelocity: number; // New: velocity for flam grace note
+  noFlams: boolean; // New: option to disable flams
 }
 
 // Add after MidiOptions interface
 const LIMITS = {
   bpm: { min: 30, max: 240 },
   noteDuration: [1, 2, 4, 8, 16, 32, 64], // valid Duration values
-  velocity: { min: 0, max: 100 }
+  velocity: { min: 0, max: 100 },
+  flamDuration: [64, 128, 256], // New: valid flam duration values
 };
 
 function validateOptions(options: Partial<MidiOptions>): void {
   if (options.bpm !== undefined) {
     if (options.bpm < LIMITS.bpm.min || options.bpm > LIMITS.bpm.max) {
-      throw new Error(`BPM must be between ${LIMITS.bpm.min} and ${LIMITS.bpm.max}`);
+      throw new Error(
+        `BPM must be between ${LIMITS.bpm.min} and ${LIMITS.bpm.max}`
+      );
     }
   }
 
   if (options.noteDuration !== undefined) {
     if (!LIMITS.noteDuration.includes(options.noteDuration)) {
-      throw new Error(`Note duration must be one of: ${LIMITS.noteDuration.join(', ')}`);
+      throw new Error(
+        `Note duration must be one of: ${LIMITS.noteDuration.join(", ")}`
+      );
     }
   }
 
   if (options.accentVelocity !== undefined) {
-    if (options.accentVelocity < LIMITS.velocity.min || options.accentVelocity > LIMITS.velocity.max) {
-      throw new Error(`Accent velocity must be between ${LIMITS.velocity.min} and ${LIMITS.velocity.max}`);
+    if (
+      options.accentVelocity < LIMITS.velocity.min ||
+      options.accentVelocity > LIMITS.velocity.max
+    ) {
+      throw new Error(
+        `Accent velocity must be between ${LIMITS.velocity.min} and ${LIMITS.velocity.max}`
+      );
     }
   }
 
   if (options.normalVelocity !== undefined) {
-    if (options.normalVelocity < LIMITS.velocity.min || options.normalVelocity > LIMITS.velocity.max) {
-      throw new Error(`Normal velocity must be between ${LIMITS.velocity.min} and ${LIMITS.velocity.max}`);
+    if (
+      options.normalVelocity < LIMITS.velocity.min ||
+      options.normalVelocity > LIMITS.velocity.max
+    ) {
+      throw new Error(
+        `Normal velocity must be between ${LIMITS.velocity.min} and ${LIMITS.velocity.max}`
+      );
+    }
+  }
+
+  if (options.flamDuration !== undefined) {
+    if (!LIMITS.flamDuration.includes(options.flamDuration)) {
+      throw new Error(
+        `Flam duration must be one of: ${LIMITS.flamDuration.join(", ")}`
+      );
+    }
+    
+    // Ensure flamDuration is larger than noteDuration
+    const noteDur = options.noteDuration || DEFAULT_CONFIG.noteDuration;
+    if (options.flamDuration <= noteDur) {
+      throw new Error(
+        `Flam duration (${options.flamDuration}) must be larger than note duration (${noteDur})`
+      );
+    }
+  }
+  if (options.flamVelocity !== undefined) {
+    if (
+      options.flamVelocity < LIMITS.velocity.min ||
+      options.flamVelocity > LIMITS.velocity.max
+    ) {
+      throw new Error(
+        `Flam velocity must be between ${LIMITS.velocity.min} and ${LIMITS.velocity.max}`
+      );
     }
   }
 }
 
 // Add drum name to MIDI note mapping
 const DRUM_MAP: { [key: string]: number } = {
-  'BD': 36,
-  'RS': 37,
-  'SD': 38,
-  'CP': 39,
-  'CH': 42,
-  'LT': 43,
-  'OH': 46,
-  'MT': 47,
-  'CY': 49,
-  'HT': 50,
-  'CB': 56,
+  BD: 36,
+  RS: 37,
+  SD: 38,
+  CP: 39,
+  CH: 42,
+  LT: 43,
+  OH: 46,
+  MT: 47,
+  CY: 49,
+  HT: 50,
+  CB: 56,
 };
 
 // Add this helper function after DRUM_MAP definition
@@ -88,14 +132,18 @@ interface CommandLineArgs {
   noteDuration?: number;
   accentVelocity?: number;
   normalVelocity?: number;
+  noFlams?: boolean; // New: CLI argument for disabling flams
 }
 
 // Replace the DEFAULT_CONFIG with validated values
 const DEFAULT_CONFIG: MidiOptions = {
   bpm: 120,
   noteDuration: 16,
-  accentVelocity: 80, // Adjusted to be within limits
-  normalVelocity: 60, // Adjusted to be within limits
+  accentVelocity: 80, 
+  normalVelocity: 60,  
+  flamDuration: 128, 
+  flamVelocity: 40, // Quieter than normal hits
+  noFlams: false, // New: default to allowing flams
 };
 
 // Core functions
@@ -124,7 +172,7 @@ function parsePatFile(content: string, name: string): ParsedPattern {
   });
 
   // Validate and trim patterns
-  hits.forEach(hit => {
+  hits.forEach((hit) => {
     hit.pattern = hit.pattern.substring(0, patternLength);
   });
   accents = accents.slice(0, patternLength);
@@ -133,42 +181,65 @@ function parsePatFile(content: string, name: string): ParsedPattern {
 }
 
 function convertPatternToMidi(
-  parsedData: ParsedPattern, 
+  parsedData: ParsedPattern,
   filename: string,
   options: Partial<MidiOptions> = {}
 ): Uint8Array {
   const config = { ...DEFAULT_CONFIG, ...options };
   const { hits, accents, patternLength } = parsedData;
   const track = new MidiWriter.Track();
+  const flamTrack = new MidiWriter.Track(); // New: track for flam grace notes
   let noteDuration = config.noteDuration;
-  
+
   track.addTrackName(filename.replace(/\.[^/.]+$/, ""));
   track.setTempo(config.bpm);
   if (patternLength % 8 === 0) {
     track.setTimeSignature(patternLength / 4, 4);
-  } else {  
+  } else {
     track.setTimeSignature(patternLength, 8);
     noteDuration /= 2;
   }
   const ticksPerNote = MidiWriter.Utils.getTickDuration(noteDuration);
+  const ticksPerFlam = MidiWriter.Utils.getTickDuration(config.flamDuration);
 
   let wait = 0;
 
   for (let step = 0; step < patternLength; step++) {
     const notesAtStep = hits
-      .filter(({ pattern }) => pattern[step].toUpperCase() === "X")
-      .map(({ note }) => Number(note));
+      .filter(({ pattern }) => {
+        const char = pattern[step].toUpperCase();
+        return char === "X" || char === "F";
+      })
+      .map(({ note, pattern }) => ({
+        isFlam: pattern[step].toUpperCase() === "F",
+        midiValue: Number(note),
+      }));
 
     if (notesAtStep.length === 0) {
       wait += ticksPerNote;
       continue;
     }
 
+    // Process flams (without noFlams check)
+    if (!config.noFlams) {
+      const tick = step * ticksPerNote - ticksPerFlam
+      notesAtStep.filter(note => note.isFlam).forEach((note) => {
+          const graceNote = new MidiWriter.NoteEvent({
+            pitch: [note.midiValue],
+            duration: 'T' + (ticksPerFlam - 1),
+            velocity: accents[step] ? config.normalVelocity : config.flamVelocity,
+            tick: tick < 0 ? ticksPerFlam: tick,
+          });
+          track.addEvent(graceNote);
+      });
+    }
+
+    // Regular note (treat flams as normal hits if noFlams is true)
     const event = new MidiWriter.NoteEvent({
-      pitch: notesAtStep,
+      pitch: notesAtStep.map(note => note.midiValue),
       duration: noteDuration,
       velocity: accents[step] ? config.accentVelocity : config.normalVelocity,
-      wait: "T" + wait
+      wait: "T" + wait,
     });
 
     track.addEvent(event);
@@ -180,8 +251,8 @@ function convertPatternToMidi(
 
 // File processing functions
 async function processFile(
-  inputPath: string, 
-  outputPath: string, 
+  inputPath: string,
+  outputPath: string,
   debug: boolean,
   options?: Partial<MidiOptions>
 ) {
@@ -198,23 +269,25 @@ async function processFile(
     }
 
     await Deno.writeFile(outputPath, midiBuffer);
-    console.log(`Converted ${basename(inputPath)} to ${await Deno.realPath(outputPath)}`);
+    console.log(
+      `Converted ${basename(inputPath)} to ${await Deno.realPath(outputPath)}`
+    );
   } catch (error) {
     throw new Error(`Failed to process file ${inputPath}: ${error.message}`);
   }
 }
 
 async function processDirectory(
-  inputDir: string, 
-  outputDir: string, 
+  inputDir: string,
+  outputDir: string,
   debug: boolean,
   options?: Partial<MidiOptions>
 ) {
   await Deno.mkdir(outputDir, { recursive: true });
-  
+
   for await (const entry of Deno.readDir(inputDir)) {
     if (!entry.isFile || !entry.name.endsWith(".pat")) continue;
-    
+
     const inputPath = join(inputDir, entry.name);
     const outputPath = join(outputDir, entry.name.replace(".pat", ".mid"));
     await processFile(inputPath, outputPath, debug, options);
@@ -224,16 +297,16 @@ async function processDirectory(
 // Main execution
 async function main() {
   const args = parseArgs(Deno.args, {
-    alias: { 
-      'output': 'o',
-      'help': 'h'
+    alias: {
+      output: "o",
+      help: "h",
     },
-    string: ['output', 'o'],
-    boolean: ['debug', 'help', 'h']
+    string: ["output", "o"],
+    boolean: ["debug", "help", "h", "no-flams"], // Added no-flams to boolean options
   }) as CommandLineArgs;
-  
+
   const target = args._[0]?.toString();
-  
+
   if (!target || args.help || args.h) {
     console.error(`Usage: pat2midi [OPTION]... FILE...
 
@@ -248,10 +321,25 @@ Examples:
 Options:
   -o, --output=PATH        Specify output file or directory
   --debug                  Output MIDI file contents as JSON instead of writing file
-  --bpm=NUMBER             Set tempo in beats per minute (${LIMITS.bpm.min}-${LIMITS.bpm.max}, default: ${DEFAULT_CONFIG.bpm})
-  --noteDuration=NUMBER    Set note duration (${LIMITS.noteDuration.join('|')}, default: ${DEFAULT_CONFIG.noteDuration})
-  --accentVelocity=NUMBER  Set velocity for accented notes (${LIMITS.velocity.min}-${LIMITS.velocity.max}, default: ${DEFAULT_CONFIG.accentVelocity})
-  --normalVelocity=NUMBER  Set velocity for normal notes (${LIMITS.velocity.min}-${LIMITS.velocity.max}, default: ${DEFAULT_CONFIG.normalVelocity})
+  --bpm=NUMBER             Set tempo in beats per minute (${LIMITS.bpm.min}-${
+      LIMITS.bpm.max
+    }, default: ${DEFAULT_CONFIG.bpm})
+  --noteDuration=NUMBER    Set note duration (${LIMITS.noteDuration.join(
+    "|"
+  )}, default: ${DEFAULT_CONFIG.noteDuration})
+  --accentVelocity=NUMBER  Set velocity for accented notes (${
+    LIMITS.velocity.min
+  }-${LIMITS.velocity.max}, default: ${DEFAULT_CONFIG.accentVelocity})
+  --normalVelocity=NUMBER  Set velocity for normal notes (${
+    LIMITS.velocity.min
+  }-${LIMITS.velocity.max}, default: ${DEFAULT_CONFIG.normalVelocity})
+  --flamOffset=NUMBER     Set flam grace note offset in ticks (0-20, default: ${
+    DEFAULT_CONFIG.flamDuration
+  })
+  --flamVelocity=NUMBER   Set flam grace note velocity (${
+    LIMITS.velocity.min
+  }-${LIMITS.velocity.max}, default: ${DEFAULT_CONFIG.flamVelocity})
+  --no-flams             Disable flam processing (convert flams to normal hits)
   -h, --help               Display this help and exit`);
     Deno.exit(1);
   }
@@ -260,12 +348,15 @@ Options:
     bpm: args.bpm,
     noteDuration: args.noteDuration,
     accentVelocity: args.accentVelocity,
-    normalVelocity: args.normalVelocity
+    normalVelocity: args.normalVelocity,
+    noFlams: args["no-flams"], // Add the no-flams option
   };
 
   // Remove undefined values
-  Object.keys(options).forEach(key => 
-    options[key as keyof MidiOptions] === undefined && delete options[key as keyof MidiOptions]
+  Object.keys(options).forEach(
+    (key) =>
+      options[key as keyof MidiOptions] === undefined &&
+      delete options[key as keyof MidiOptions]
   );
 
   try {
@@ -279,7 +370,12 @@ Options:
       await processFile(target, outputPath, args.debug ?? false, options);
     }
   } catch (error) {
-    console.error(`Error: ${error instanceof Error ? error.message : 'An unknown error occurred'}`);
+
+    console.error(
+      `Error: ${
+        error instanceof Error ? error.message : "An unknown error occurred"
+      }`
+    );
     Deno.exit(1);
   }
 }
