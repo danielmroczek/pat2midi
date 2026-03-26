@@ -39,16 +39,16 @@ Each line contains:
 - A MIDI note number or drum name (e.g., 42 or CH)
 - A pattern using the following characters:
   - `x` — regular hit
-  - `F` — flam (grace note played just before the main hit at reduced velocity)
+  - `f` — flam (grace note played just before the main hit at reduced velocity)
   - `-` — silence
 - Optional `AC` line defining accents (marks which steps have higher velocity)
 
 ### Flam Notation
 
-A flam (`F`) is a drumming technique consisting of a quiet grace note played slightly before the main stroke. Use `F` in a pattern wherever you want a flam hit:
+A flam (`f`) is a drumming technique consisting of a quiet grace note played slightly before the main stroke. Use `f` in a pattern wherever you want a flam hit:
 
 ```
-SD ----F-------x---
+SD ----f-------x---
 BD x-------x-x-----
 CH x---x---x---x---
 AC ----x-------x---
@@ -97,7 +97,7 @@ AC ----x-------x-x-
 | `--normalVelocity=NUMBER` | Set velocity for normal notes (0–100) | `60` |
 | `--flamOffset=NUMBER` | Set flam grace note offset in ticks (`64\|128\|256`) | `128` |
 | `--flamVelocity=NUMBER` | Set flam grace note velocity (0–100) | `40` |
-| `--no-flams` | Disable flam processing (treat `F` as a normal hit) | `false` |
+| `--no-flams` | Disable flam processing (treat `f` as a normal hit) | `false` |
 | `-h, --help` | Display help and exit | |
 
 ### Flam configuration
@@ -109,7 +109,7 @@ Convert a pattern with custom flam settings:
 deno --allow-read --allow-write pat2midi.ts examples/flam.pat --flamOffset 64 --flamVelocity 30
 ```
 
-Disable flam processing so all `F` characters are treated as normal hits:
+Disable flam processing so all `f` characters are treated as normal hits:
 ```bash
 deno --allow-read --allow-write pat2midi.ts examples/flam.pat --no-flams
 ```
