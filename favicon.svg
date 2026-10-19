@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+
+  <metadata xmlns:fc="https://danielmroczek.github.io/favicon-creator">
+    <fc:iconFamily>tabler</fc:iconFamily>
+    <fc:iconName>music-code</fc:iconName>
+    <fc:gradientStart>#1976d2</fc:gradientStart>
+    <fc:gradientEnd>#263238</fc:gradientEnd>
+    <fc:iconColor>#ffffff</fc:iconColor>
+    <fc:iconSize>21</fc:iconSize>
+  </metadata>
+
+  <defs>
+    <linearGradient id="gradient" x1="15%" y1="15%" x2="85%" y2="85%">
+      <stop stop-color="#1976d2"/>
+      <stop offset="1" stop-color="#263238"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="32" height="32" rx="4" fill="url(#gradient)"/>
+
+  <path id="icon" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M5.5 20.9737a3.3158 3.3158 0 1 0 6.6316 0 3.3158 3.3158 0 0 0-6.6316 0m6.6316 0V6.6053h11.0526v9.9473M12.1316 11.0263h11.0526m1.1053 14.3684l2.2105-2.2105-2.2105-2.2105m-3.3158 0l-2.2105 2.2105 2.2105 2.2105"/>
+
+</svg>
